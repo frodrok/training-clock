@@ -1,12 +1,10 @@
-use std::io::{stdout, Write};
+use std::io::stdout;
 use std::{thread, time::Duration, time::Instant};
 
 use std::io;
 
-use crossterm::cursor;
-use crossterm::event::{read, Event, KeyCode, KeyEvent, KeyModifiers};
-use crossterm::style::Print;
-use crossterm::terminal::{disable_raw_mode, enable_raw_mode, Clear, ClearType};
+use crossterm::event::{Event, KeyCode, KeyEvent, KeyModifiers};
+use crossterm::terminal::{disable_raw_mode, enable_raw_mode};
 
 use tui::{
     backend::{Backend, CrosstermBackend},
@@ -39,7 +37,8 @@ struct AppState {
 }
 
 enum InputMode {
-    Normal, Editing
+    Normal,
+    Editing,
 }
 
 fn main() -> Result<(), io::Error> {
@@ -49,9 +48,6 @@ fn main() -> Result<(), io::Error> {
 
     //    beep(440);
     //    print!("\x07");
-
-    let mut start_time = Instant::now();
-    let mut waiting_for_start = true;
 
     //clearing the screen, going to top left corner and printing welcoming message
     /* execute!(
@@ -72,8 +68,6 @@ fn main() -> Result<(), io::Error> {
     wav.load_mem(include_bytes!("../go.wav")).unwrap();
 
     let wait_time: Duration = Duration::from_secs(60);
-    let wait_time_secs: f64 = wait_time.as_secs() as f64;
-    let mut is_editing = false;
 
     let mut app_state = AppState {
         running_timer: false,
@@ -99,7 +93,12 @@ fn main() -> Result<(), io::Error> {
                 //println!("elapsed {} / wait_time {} = progress {}", elapsed, app_state.wait_time.as_secs(), progress);
 
                 let _ = terminal.draw(|f| {
-                    timer_ui(f, time_string.clone(), app_state.running_timer.clone(), progress)
+                    timer_ui(
+                        f,
+                        time_string.clone(),
+                        app_state.running_timer.clone(),
+                        progress,
+                    )
                 });
 
                 if elapsed >= app_state.wait_time.as_secs() {
@@ -109,13 +108,18 @@ fn main() -> Result<(), io::Error> {
                     sl.play(&app_state.play_sound);
 
                     while sl.voice_count() > 0 {
-                        std::thread::sleep(std::time::Duration::from_millis(100));
+                        thread::sleep(std::time::Duration::from_millis(100));
                     }
 
                     app_state.running_timer = false;
 
                     let _ = terminal.draw(|t| {
-                        timer_ui(t, time_string.clone(), app_state.running_timer.clone(), progress)
+                        timer_ui(
+                            t,
+                            time_string.clone(),
+                            app_state.running_timer.clone(),
+                            progress,
+                        )
                     });
 
                     break 'timer;
@@ -130,16 +134,14 @@ fn main() -> Result<(), io::Error> {
                 InputMode::Normal => match key {
                     KeyEvent {
                         code: KeyCode::Char('q'),
-                        modifiers: KeyModifiers::CONTROL
+                        modifiers: KeyModifiers::CONTROL,
                     } => {
                         break;
                     }
                     KeyEvent {
                         code: KeyCode::Char('e'),
                         ..
-                    } => {
-                        app_state.input_mode = InputMode::Editing
-                    }
+                    } => app_state.input_mode = InputMode::Editing,
                     KeyEvent {
                         code: KeyCode::Char(' '),
                         ..
@@ -149,88 +151,39 @@ fn main() -> Result<(), io::Error> {
                     }
 
                     _ => {}
-                }
+                },
                 InputMode::Editing => match key {
                     KeyEvent {
-                        code:KeyCode::Esc,
-                        ..
-                    } => {
-                        app_state.input_mode = InputMode::Normal
-                    }
+                        code: KeyCode::Esc, ..
+                    } => app_state.input_mode = InputMode::Normal,
                     KeyEvent {
                         code: KeyCode::Char(c),
                         ..
                     } => {
                         app_state.timer_value.push(c);
-                    },
+                    }
                     KeyEvent {
                         code: KeyCode::Backspace,
                         ..
                     } => {
                         app_state.timer_value.pop();
-                    },
+                    }
                     KeyEvent {
                         code: KeyCode::Enter,
                         ..
                     } => {
-
                         let timer_seconds: u32 = match app_state.timer_value.parse::<u32>() {
                             Ok(v) => v,
-                            Err(e) => 60
+                            Err(_e) => 60,
                         };
 
                         app_state.wait_time = Duration::from_secs(timer_seconds as u64);
                         app_state.input_mode = InputMode::Normal;
                     }
                     _ => {}
-
-                }
+                },
             }
         }
-        // need to make this some kind of event pump instead of a blocking call?
-        /*match read().unwrap() {
-            Event::Key(KeyEvent {
-                code: KeyCode::Char('h'),
-                modifiers: KeyModifiers::CONTROL,
-            }) => {} //execute!(stdout, Clear(ClearType::All), Print("Hello world!")).unwrap(),
-            Event::Key(KeyEvent {
-                code: KeyCode::Char('t'),
-                modifiers: KeyModifiers::ALT,
-            }) => {} //execute!(stdout, Clear(ClearType::All), Print("crossterm is cool")).unwrap(),
-            Event::Key(KeyEvent {
-                code: KeyCode::Char('q'),
-                modifiers: KeyModifiers::CONTROL,
-            }) => break,
-            Event::Key(KeyEvent{
-                code: KeyCode::Char('e'),
-                ..
-                       }) => {
-                        app_state.is_editing_timer = true;
-                    }
-            Event::Key(KeyEvent{
-                code: KeyCode::Esc,
-                ..
-                       }) => {
-                app_state.is_editing_timer = false;
-            }
-            Event::Key(KeyEvent{
-                  code:KeyCode::Enter,
-                ..
-                       }) => {
-                // Grab value of input field and set to `wait_time`
-                app_state.is_editing_timer = false;
-            }
-
-            Event::Key(KeyEvent {
-                code: KeyCode::Char(' '),
-                ..
-            }) => {
-                app_state.running_timer = true;
-                app_state.start_time = Instant::now();
-                //                execute!(stdout, Clear(ClearType::All), Print("starting timer")).unwrap();
-            }
-            _ => (),
-        } */
 
         thread::sleep(Duration::from_millis(100));
     }
@@ -249,8 +202,7 @@ fn main() -> Result<(), io::Error> {
     Ok(())
 }
 
-fn sleeping_ui<B: Backend>(f: &mut Frame<B>, mut app_state: &AppState) {
-
+fn sleeping_ui<B: Backend>(f: &mut Frame<B>, app_state: &AppState) {
     let size = f.size();
 
     let block = Block::default()
